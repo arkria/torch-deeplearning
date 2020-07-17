@@ -1,3 +1,5 @@
 .idea/
+data/cifar2/*
 supervised_learning/logs
 supervised_learning/model
+netmodel/__pycache__/
