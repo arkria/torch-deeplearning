@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import datetime
+import os
 
 
 class DataSet:
@@ -41,7 +42,7 @@ class MLP(nn.Module):
     def predict(self, x):
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        x = F.softmax(self.linear3(x))
+        x = F.softmax(self.linear3(x), dim=1)
         _, pred = torch.max(x, dim=1)
         return pred
 
@@ -81,19 +82,41 @@ def preprocessing(dfdata):
 
 def train():
     for epoch in range(epochs):
-        for i, (features, label) in enumerate(trainDs):
+        lossTmp = []
+        accTmp = []
+        for i, (features, labels) in enumerate(trainDs):
             features = torch.tensor(features, dtype=torch.float32)
             onehot = model(features)
-            pred = model.predict(features)
-            loss = lossFunc(onehot, label)
+            preds = model.predict(features)
+            losses = lossFunc(onehot, labels)
             optimizer.zero_grad()
-            loss.backward()
+            losses.backward()
             optimizer.step()
-            num_correct = torch.eq(pred, label).sum().float().item()
-            acc = num_correct / features.shape[0]
+            num_corrects = torch.eq(preds, labels).sum().float().item()
+            accs = num_corrects / features.shape[0]
+            lossTmp.append(losses.item())
+            accTmp.append(accs)
             if i % 1 == 0:
-                print("epoch [{}/{}], iter [{}/{}], loss {:.4f}, accuracy {:.4f}".
-                      format(epoch, epochs, i, len(trainDs), loss.item(), acc))
+                print("epoch [{:>2}/{}], iter [{:>2}/{}], loss {:.4f}, accuracy {:.4f}".
+                      format(epoch, epochs, i, len(trainDs), losses.item(), accs))
+        writerTrain.add_scalar('loss', torch.tensor(lossTmp).mean().item(), epoch)
+        writerTrain.add_scalar('accuracy', torch.tensor(accTmp).mean().item(), epoch)
+
+        with torch.no_grad():
+            feature = torch.tensor(dsValid.X, dtype=torch.float32)
+            label = torch.tensor(dsValid.Y)
+            onehot = model(feature)
+            pred = model.predict(feature)
+            loss = lossFunc(onehot, label)
+            num_correct = torch.eq(pred, label).sum().float().item()
+            acc = num_correct / feature.shape[0]
+            print("=====> valid: epoch [{:>2}/{}], loss {:.4f}, accuracy {:.4f}".
+                  format(epoch, epochs, loss.item(), acc))
+
+            # for name, param in model.named_parameters():
+            #     print(name, ": ", param)
+
+    writerTrain.close()
 
 
 
@@ -115,16 +138,24 @@ if __name__ == '__main__':
     yTest = dftestRaw['Survived'].values
 
     currentTime = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    trainLogDir = 'logs/gradient_tape/' + currentTime + '/train'
-    testLogDir = 'logs/gradient_tape/' + currentTime + '/test'
+    trainLogDir = 'logs/titanic/' + currentTime + '/train'
+    validLogDir = 'logs/titanic/' + currentTime + '/valid'
 
     writerTrain = SummaryWriter(trainLogDir)
-    writerTest = SummaryWriter(testLogDir)
+    writerValid = SummaryWriter(validLogDir)
 
     dsTrain = DataSet(xTrain, yTrain)
+    trSize = int(0.95 * len(dsTrain))
+    vlSize = len(dsTrain) - trSize
+    dsTrain, dsValid = torch.utils.data.random_split(dsTrain, [trSize, vlSize])
+
+    dsTrain = DataSet(dsTrain.dataset.X[dsTrain.indices,:], dsTrain.dataset.Y[dsTrain.indices])
+    dsValid = DataSet(dsValid.dataset.X[dsValid.indices, :], dsValid.dataset.Y[dsValid.indices])
     dsTest = DataSet(xTest, yTest)
 
-    trainDs = DataLoader(dsTrain, shuffle=True, batch_size=bz, drop_last=True)
+    trainDs = DataLoader(dsTrain, shuffle=False, batch_size=bz, drop_last=True)
+    validDs = DataLoader(dsValid, shuffle=True, batch_size=bz, drop_last=True)
+
     testDs = DataLoader(dsTest, shuffle=True, batch_size=bz, drop_last=True)
 
     model = MLP()
@@ -133,3 +164,20 @@ if __name__ == '__main__':
     optimizer = optimizer.Adam(model.parameters(), lr=lr)
 
     train()
+
+    model_path = './model/' + currentTime + '/train'
+    os.makedirs(model_path)
+    model_path = model_path + '/model.pkl'
+
+    torch.save(model.state_dict(), model_path)
+
+    model_dict = model.load_state_dict(torch.load(model_path))
+
+    feature = torch.tensor(dsTest.X, dtype=torch.float32)
+    label = torch.tensor(dsTest.Y)
+    onehot = model(feature)
+    pred = model.predict(feature)
+    loss = lossFunc(onehot, label)
+    num_correct = torch.eq(pred, label).sum().float().item()
+    acc = num_correct / feature.shape[0]
+    print("accuracy {:.4f}".format(acc))
