@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optimizer
-from torch.utils.data import DataLoaderss
+from torch.utils.data import DataLoader
 
 from tensorboardX import SummaryWriter
 
@@ -36,7 +36,8 @@ class MLP(nn.Module):
     def forward(self, x):
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        x = F.softmax(self.linear3(x), dim=1)
+        # x = F.softmax(self.linear3(x), dim=1)
+        x = self.linear3(x)  # the crossentropy loss will embed the softmax
         return x
 
     def predict(self, x):
@@ -165,7 +166,7 @@ if __name__ == '__main__':
 
     train()
 
-    model_path = './model/' + currentTime + '/train'
+    model_path = './model/titanic/' + currentTime + '/train'
     os.makedirs(model_path)
     model_path = model_path + '/model.pkl'
 
