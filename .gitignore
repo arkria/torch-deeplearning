@@ -1,7 +1,6 @@
 .idea/
 data/cifar2/*
 data/MNIST
-data/titanic
 supervised_learning/logs
 supervised_learning/model
 netmodel/__pycache__/
