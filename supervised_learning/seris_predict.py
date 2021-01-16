@@ -63,7 +63,7 @@ class LSTMNet(nn.Module):
        out = out.view(-1, hidden_size)
        out = self.linear(out)
        out = out.unsqueeze(dim=0)
-       return out, hidden_prev
+       return out, hidden_prev, cell_prev
 
 
 if __name__ == '__main__':
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         x = torch.tensor(data[:-pred_length]).float().view(1, num_time_steps - pred_length, 1)   # [bz, seq_len, feature_len]
         y = torch.tensor(data[pred_length:]).float().view(1, num_time_steps - pred_length, 1)
 
-        output, hidden_prev = model(x, hidden_prev, cell_prev)
+        output, hidden_prev, cell_prev = model(x, hidden_prev, cell_prev)
         hidden_prev = hidden_prev.detach()
         cell_prev = cell_prev.detach()
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     input = x[:, 0, :]
     for _ in range(x.shape[1]):
       input = input.view(1, 1, 1)
-      (pred, hidden_prev) = model(input, hidden_prev, cell_prev)    # 这里的input不是一个sequence,而是只有一个点，当然也可以是sequence
+      (pred, hidden_prev, cell_prev) = model(input, hidden_prev, cell_prev)    # 这里的input不是一个sequence,而是只有一个点，当然也可以是sequence
       input = pred
       predictions.append(pred.detach().numpy().ravel()[0])
 

@@ -68,7 +68,7 @@ class ResNet18(nn.Module):
         # # [b, 256, h, w] => [b, 512, h, w]
         self.blk3 = ResBlk(256, 512, stride=2)
         # # [b, 512, h, w] => [b, 1024, h, w]
-        self.blk4 = ResBlk(512, 512, stride=2)
+        self.blk4 = ResBlk(512, 512, stride=1)
 
         self.outlayer = nn.Linear(512*1*1, 10)
 

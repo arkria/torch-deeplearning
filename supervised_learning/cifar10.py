@@ -64,8 +64,8 @@ def main():
     print('x:', x.shape, 'label:', label.shape)
 
     device = torch.device('cpu')
-    model = Lenet5().to(device)
-    # model = ResNet18().to(device)
+    # model = Lenet5().to(device)
+    model = ResNet18().to(device)
 
     criteon = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
